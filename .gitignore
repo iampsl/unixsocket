@@ -1,0 +1,6 @@
+server/release/objs/
+server/debug/objs/
+server/debug/server
+server/release/server
+client/client
+protoc.exe

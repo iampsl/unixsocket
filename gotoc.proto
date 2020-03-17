@@ -1,0 +1,26 @@
+syntax = "proto3";
+package gotocpb;
+
+//每一个消息由包头和包体组成
+//包头的长度是固定的,占用四个字节(uint32),存储了总个包的长度(包头长+包体长),以网络字节序存储
+
+//命令类型
+enum CmdID{
+    ADD_REQ = 0;     //加请求
+    ADD_RSP = 1;     //加响应
+}
+
+//消息体
+message MsgBody{
+    CmdID ID = 1;        //消息命令
+    bytes Data = 2;      //具体消息的protobuffer封包
+}
+
+message AddReq{
+    sfixed32 Num1 = 1;
+    sfixed32 Num2 = 2;
+}
+
+message AddRsp{
+    sfixed32 Sum = 1;
+}
