@@ -1,16 +1,17 @@
-#include <stdio.h>
-#include <stddef.h>
-#include <stdlib.h>
-#include <stdint.h>
+#include <arpa/inet.h>
 #include <errno.h>
-#include <string.h>
-#include <unistd.h>
 #include <signal.h>
-#include <sys/types.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <sys/un.h>
 #include <sys/wait.h>
-#include <arpa/inet.h>
+#include <unistd.h>
+
 #include "gotoc.pb.h"
 
 #define ERROR_ARGS 1
@@ -67,7 +68,30 @@ int unix_listen(const char *pathname) {
   return listenfd;
 }
 
-int net_listen(const char *host, int port) { return 0; }
+int net_listen(const char *host, int port) {
+  int listenfd = socket(AF_INET, SOCK_STREAM, 0);
+  if (listenfd < 0) {
+    return -2;
+  }
+  sockaddr_in addr;
+  memset(&addr, 0, sizeof(addr));
+  addr.sin_family = AF_INET;
+  addr.sin_port = htons((uint16_t)port);
+  addr.sin_addr.s_addr = inet_addr(host);
+  if (0 != bind(listenfd, (const sockaddr *)&addr, sizeof(addr))) {
+    int tmp = errno;
+    close(listenfd);
+    errno = tmp;
+    return -3;
+  }
+  if (0 != listen(listenfd, 0)) {
+    int tmp = errno;
+    close(listenfd);
+    errno = tmp;
+    return -4;
+  }
+  return listenfd;
+}
 
 int main(int argc, char *argv[]) {
   if (argc < 2) {
@@ -140,7 +164,8 @@ int child(int fd) {
   }
 }
 
-void sendmessage(int fd, gotocpb::CmdID cmd, google::protobuf::MessageLite *msg) {
+void sendmessage(int fd, gotocpb::CmdID cmd,
+                 google::protobuf::MessageLite *msg) {
   gotocpb::MsgBody body;
   body.set_id(cmd);
   if (msg != nullptr) {
@@ -159,11 +184,12 @@ void sendmessage(int fd, gotocpb::CmdID cmd, google::protobuf::MessageLite *msg)
   *phead = htonl(uint32_t(total));
   ssize_t iwrite = send(fd, writebuf, total, 0);
   if (iwrite < 0) {
-    fprintf(stderr, "%s:%d %d %s\n", __FILE__,__LINE__,(int)iwrite, strerror(errno));
+    fprintf(stderr, "%s:%d %d %s\n", __FILE__, __LINE__, (int)iwrite,
+            strerror(errno));
     exit(0);
   }
-  if((size_t)iwrite != total){
-    fprintf(stderr, "%s:%d %u\n", __FILE__,__LINE__,(unsigned int)iwrite);
+  if ((size_t)iwrite != total) {
+    fprintf(stderr, "%s:%d %u\n", __FILE__, __LINE__, (unsigned int)iwrite);
     exit(0);
   }
 }
@@ -195,8 +221,8 @@ ssize_t onProcess(int fd, uint8_t *pdata, ssize_t size) {
 }
 
 void onMsg(int fd, gotocpb::MsgBody *msg) {
-    switch (msg->id()) {
-      case gotocpb::ADD_REQ:
+  switch (msg->id()) {
+    case gotocpb::ADD_REQ:
       onAdd(fd, msg);
       break;
     default:
@@ -205,13 +231,13 @@ void onMsg(int fd, gotocpb::MsgBody *msg) {
   }
 }
 
-void onAdd(int fd, gotocpb::MsgBody *msg){
+void onAdd(int fd, gotocpb::MsgBody *msg) {
   gotocpb::AddReq req;
-  if(!req.ParseFromString(msg->data())){
+  if (!req.ParseFromString(msg->data())) {
     fprintf(stderr, "%s:%d\n", __FILE__, __LINE__);
     exit(0);
   }
-  int sum = req.num1()+ req.num2();
+  int sum = req.num1() + req.num2();
   gotocpb::AddRsp rsp;
   rsp.set_sum(sum);
   sendmessage(fd, gotocpb::ADD_RSP, &rsp);
