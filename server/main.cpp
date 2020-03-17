@@ -106,6 +106,7 @@ int main(int argc, char *argv[]) {
       continue;
     }
     if (pid == 0) {
+      close(listenfd);
       exit(child(clientfd));
     }
     close(clientfd);
@@ -153,13 +154,16 @@ void sendmessage(int fd, gotocpb::CmdID cmd, google::protobuf::MessageLite *msg)
   if (body.SerializeToArray(writebuf + 4, int(sizeof(writebuf) - 4)) == false) {
     fprintf(stderr, "%s:%d %d\n", __FILE__, __LINE__, (int)cmd);
     exit(0);
-    return;
   }
   uint32_t *phead = (uint32_t *)writebuf;
-  *phead = htonl(total);
+  *phead = htonl(uint32_t(total));
   ssize_t iwrite = send(fd, writebuf, total, 0);
-  if (iwrite <= 0) {
+  if (iwrite < 0) {
     fprintf(stderr, "%s:%d %d %s\n", __FILE__,__LINE__,(int)iwrite, strerror(errno));
+    exit(0);
+  }
+  if((size_t)iwrite != total){
+    fprintf(stderr, "%s:%d %u\n", __FILE__,__LINE__,(unsigned int)iwrite);
     exit(0);
   }
 }
@@ -177,7 +181,7 @@ ssize_t onProcess(int fd, uint8_t *pdata, ssize_t size) {
     }
     return 0;
   }
-  if (length < 4) {
+  if (length <= 4) {
     fprintf(stderr, "%s:%d %u\n", __FILE__, __LINE__, (unsigned int)length);
     exit(0);
   }
