@@ -59,7 +59,7 @@ int unix_listen(const char *pathname) {
     errno = tmp;
     return -3;
   }
-  if (0 != listen(listenfd, 0)) {
+  if (0 != listen(listenfd, 512)) {
     int tmp = errno;
     close(listenfd);
     errno = tmp;
@@ -84,7 +84,7 @@ int net_listen(const char *host, int port) {
     errno = tmp;
     return -3;
   }
-  if (0 != listen(listenfd, 0)) {
+  if (0 != listen(listenfd, 512)) {
     int tmp = errno;
     close(listenfd);
     errno = tmp;
